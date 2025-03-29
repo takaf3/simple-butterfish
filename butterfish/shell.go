@@ -756,6 +756,23 @@ func (this *ShellState) ParentInput(ctx context.Context, data []byte) []byte {
 			return data[1:]
 		}
 
+		// Handle Ctrl+L (Form Feed / Clear Screen)
+		if data[0] == '\f' { // ASCII 12
+			// Send ANSI codes to clear screen and move cursor to top-left
+			this.ParentOut.Write([]byte("\x1b[2J\x1b[H"))
+			// Clear internal buffers just in case
+			if this.Command != nil {
+				this.Command.Clear()
+			}
+			if this.Prompt != nil {
+				this.Prompt.Clear()
+			}
+			// Send a carriage return to the child shell to trigger a prompt redraw
+			this.ChildIn.Write([]byte("\r"))
+			// Consume the Ctrl+L character
+			return data[1:]
+		}
+
 		// Check if the first character is uppercase
 		if unicode.IsUpper(rune(data[0])) { // Removed '!' check for Goal Mode
 			this.setState(statePrompting)
@@ -799,7 +816,6 @@ func (this *ShellState) ParentInput(ctx context.Context, data []byte) []byte {
 			this.ChildIn.Write(data)
 			return nil // Consumed all data
 		}
-
 	case statePrompting:
 		if hasCarriageReturn { // Enter pressed during prompt
 			// Removed ClearAutosuggest
