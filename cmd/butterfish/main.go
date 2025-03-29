@@ -63,6 +63,7 @@ type CliConfig struct {
 	Version      kong.VersionFlag `short:"V" help:"Print version information and exit."`
 	BaseURL      string           `short:"u" default:"https://api.openai.com/v1" help:"Base URL for OpenAI-compatible API. Enables local models with a compatible interface."`
 	TokenTimeout int              `short:"z" default:"10000" help:"Timeout before first prompt token is received and between individual tokens. In milliseconds."`
+	ApiKey       string           `short:"k" help:"OpenAI API key. Overrides environment variables and config file."`
 	LightColor   bool             `short:"l" default:"false" help:"Light color mode, appropriate for a terminal with a white(ish) background"`
 
 	Shell struct {
@@ -135,7 +136,11 @@ func getOpenAIToken() string {
 
 func makeButterfishConfig(options *CliConfig) *bf.ButterfishConfig {
 	config := bf.MakeButterfishConfig()
-	config.OpenAIToken = getOpenAIToken()
+	if options.ApiKey != "" {
+		config.OpenAIToken = options.ApiKey
+	} else {
+		config.OpenAIToken = getOpenAIToken()
+	}
 	config.BaseURL = options.BaseURL
 	config.PromptLibraryPath = defaultPromptPath
 	config.TokenTimeout = time.Duration(options.TokenTimeout) * time.Millisecond
