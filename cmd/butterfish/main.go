@@ -26,36 +26,25 @@ var ( // these are filled in at build time
 	BuildTimestamp string
 )
 
-const description = `Do useful things with LLMs from the command line, with a bent towards software engineering.
+const description = `A simple shell wrapper to chat with an LLM.
 
-Butterfish is a command line tool for working with LLMs. It has two modes: CLI command mode, used to prompt LLMs, summarize files, and manage embeddings, and Shell mode: Wraps your local shell to provide easy prompting and autocomplete.
+Butterfish wraps your local shell. Start a command with a capital letter to send it as a prompt to the configured LLM, using your shell history as context.
 
 Butterfish looks for an API key in OPENAI_API_KEY, or alternatively stores an OpenAI auth token at ~/.config/butterfish/butterfish.env.
 
 Prompts are stored in ~/.config/butterfish/prompts.yaml. Butterfish logs to the system temp dir, usually to /var/tmp/butterfish.log. To print the full prompts and responses from the OpenAI API, use the --verbose flag. Support can be found at https://github.com/bakks/butterfish.
-
-If you do not have OpenAI free credits then you will need a subscription and you will need to pay for OpenAI API use. If you're using Shell Mode, autosuggest will probably be the most expensive part. You can reduce spend by disabling shell autosuggest (-A) or increasing the autosuggest timeout (e.g. -t 2000). See "butterfish shell --help".
 `
 const license = "MIT License - Copyright (c) 2023 Peter Bakkum"
 const defaultEnvPath = "~/.config/butterfish/butterfish.env"
 const defaultPromptPath = "~/.config/butterfish/prompts.yaml"
 
-const shell_help = `Start the Butterfish shell wrapper. This wraps your existing shell, giving you access to LLM prompting by starting your command with a capital letter. LLM calls include prior shell context. This is great for keeping a chat-like terminal open, sending written prompts, debugging commands, and iterating on past actions.
+const shell_help = `Start the Butterfish shell wrapper. This wraps your existing shell, giving you access to LLM prompting by starting your command with a capital letter. LLM calls include prior shell context.
 
 Use:
   - Type a normal command, like 'ls -l' and press enter to execute it
   - Start a command with a capital letter to send it to GPT, like 'How do I recursively find local .py files?'
-  - Autosuggest will print command completions, press tab to fill them in
   - GPT will be able to see your shell history, so you can ask contextual questions like 'why didnt my last command work?'
-	- Start a command with ! to enter Goal Mode, in which GPT will act as an Agent attempting to accomplish your goal by executing commands, for example '!Run make in this directory and debug any problems'.
-	- Start a command with !! to enter Unsafe Goal Mode, in which GPT will execute commands without confirmation. USE WITH CAUTION.
-
-Here are special Butterfish commands:
-  - Help : Give hints about usage.
-  - Status : Show the current Butterfish configuration.
-  - History : Print out the history that would be sent in a GPT prompt.
-
-If you do not have OpenAI free credits then you will need a subscription and you will need to pay for OpenAI API use. Autosuggest will probably be the most expensive feature. You can reduce spend by disabling shell autosuggest (-A) or increasing the autosuggest timeout (e.g. -t 2000).`
+`
 
 type VerboseFlag bool
 
@@ -68,33 +57,22 @@ func (v *VerboseFlag) BeforeResolve() error {
 	return nil
 }
 
-// Kong configuration for shell arguments (shell meaning when butterfish is
-// invoked, rather than when we're inside a butterfish console).
-// Kong will parse os.Args based on this struct.
+// Kong configuration for shell arguments
 type CliConfig struct {
 	Verbose      VerboseFlag      `short:"v" default:"false" help:"Verbose mode, prints full LLM prompts (sometimes to log file). Use multiple times for more verbosity, e.g. -vv."`
-	Log          bool             `short:"L" default:"false" help:"Write verbose content to a log file rather than stdout, usually /var/tmp/butterfish.log"`
 	Version      kong.VersionFlag `short:"V" help:"Print version information and exit."`
 	BaseURL      string           `short:"u" default:"https://api.openai.com/v1" help:"Base URL for OpenAI-compatible API. Enables local models with a compatible interface."`
 	TokenTimeout int              `short:"z" default:"10000" help:"Timeout before first prompt token is received and between individual tokens. In milliseconds."`
 	LightColor   bool             `short:"l" default:"false" help:"Light color mode, appropriate for a terminal with a white(ish) background"`
 
 	Shell struct {
-		Bin                       string `short:"b" help:"Shell to use (e.g. /bin/zsh), defaults to $SHELL."`
-		Model                     string `short:"m" default:"gpt-4o" help:"Model for when the user manually enters a prompt."`
-		AutosuggestDisabled       bool   `short:"A" default:"false" help:"Disable autosuggest."`
-		AutosuggestModel          string `short:"a" default:"gpt-3.5-turbo-instruct" help:"Model for autosuggest"`
-		AutosuggestTimeout        int    `short:"t" default:"500" help:"Delay after typing before autosuggest (lower values trigger more calls and are more expensive). In milliseconds."`
-		NewlineAutosuggestTimeout int    `short:"T" default:"3500" help:"Timeout for autosuggest on a fresh line, i.e. before a command has started. Negative values disable. In milliseconds."`
-		NoCommandPrompt           bool   `short:"p" default:"false" help:"Don't change command prompt (shell PS1 variable). If not set, an emoji will be added to the prompt as a reminder you're in Shell Mode."`
-		MaxPromptTokens           int    `short:"P" default:"16384" help:"Maximum number of tokens, we restrict calls to this size regardless of model capabilities."`
-		MaxHistoryBlockTokens     int    `short:"H" default:"1024" help:"Maximum number of tokens of each block of history. For example, if a command has a very long output, it will be truncated to this length when sending the shell's history."`
-		MaxResponseTokens         int    `short:"R" default:"2048" help:"Maximum number of tokens in a response when prompting."`
-	} `cmd:"" help:"${shell_help}"`
-
-	// We include the cliConsole options here so that we can parse them and hand them
-	// to the console executor, even though we're in the shell context here
-	bf.CliCommandConfig
+		Bin                   string `short:"b" help:"Shell to use (e.g. /bin/zsh), defaults to $SHELL."`
+		Model                 string `short:"m" default:"gpt-4o" help:"Model for when the user manually enters a prompt."`
+		NoCommandPrompt       bool   `short:"p" default:"false" help:"Don't change command prompt (shell PS1 variable). If not set, an emoji will be added to the prompt as a reminder you're in Shell Mode."`
+		MaxPromptTokens       int    `short:"P" default:"16384" help:"Maximum number of tokens, we restrict calls to this size regardless of model capabilities."`
+		MaxHistoryBlockTokens int    `short:"H" default:"1024" help:"Maximum number of tokens of each block of history. For example, if a command has a very long output, it will be truncated to this length when sending the shell's history."`
+		MaxResponseTokens     int    `short:"R" default:"2048" help:"Maximum number of tokens in a response when prompting."`
+	} `cmd:"" help:"${shell_help}" default:"withargs"` // Make shell the default command
 }
 
 func getOpenAIToken() string {
@@ -117,7 +95,7 @@ func getOpenAIToken() string {
 	}
 
 	// If we don't have a token, we'll prompt the user to create one
-	fmt.Printf("Butterfish requires an OpenAI API key, please visit https://beta.openai.com/account/api-keys to create one and paste it below (it should start with sk-):\n")
+	fmt.Printf("Butterfish requires an OpenAI API key, please visit https://platform.openai.com/account/api-keys to create one and paste it below (it should start with sk-):\n")
 
 	// read in the token and validate
 	fmt.Scanln(&token)
@@ -197,7 +175,8 @@ func main() {
 		panic(err)
 	}
 
-	parsedCmd, err := cliParser.Parse(os.Args[1:])
+	// Since 'shell' is the default command, we don't need to parse subcommands explicitly
+	_, err = cliParser.Parse(os.Args[1:])
 	cliParser.FatalIfErrorf(err)
 
 	config := makeButterfishConfig(cli)
@@ -206,57 +185,37 @@ func main() {
 
 	errorWriter := util.NewStyledWriter(os.Stderr, config.Styles.Error)
 
-	switch parsedCmd.Command() {
-	case "shell":
-		logfileName := util.InitLogging(ctx)
-		fmt.Printf("Logging to %s\n", logfileName)
+	// --- Start Shell Mode ---
+	logfileName := util.InitLogging(ctx)
+	fmt.Printf("Logging to %s\n", logfileName)
 
-		alreadyRunning := os.Getenv("BUTTERFISH_SHELL")
-		if alreadyRunning != "" {
-			fmt.Fprintf(errorWriter, "Butterfish shell is already running, cannot wrap shell again (detected with BUTTERFISH_SHELL env var).\n")
-			os.Exit(8)
-		}
-
-		shell := os.Getenv("SHELL")
-		if cli.Shell.Bin != "" {
-			shell = cli.Shell.Bin
-		}
-		if shell == "" {
-			fmt.Fprintf(errorWriter, "No shell found, please specify one with -b or $SHELL\n")
-			os.Exit(7)
-		}
-
-		config.ShellBinary = shell
-		config.ShellPromptModel = cli.Shell.Model
-		config.ShellAutosuggestEnabled = !cli.Shell.AutosuggestDisabled
-		config.ShellAutosuggestModel = cli.Shell.AutosuggestModel
-		config.ShellAutosuggestTimeout = time.Duration(cli.Shell.AutosuggestTimeout) * time.Millisecond
-		config.ShellNewlineAutosuggestTimeout = time.Duration(cli.Shell.NewlineAutosuggestTimeout) * time.Millisecond
-		config.ColorDark = !cli.LightColor
-		config.ShellMode = true
-		config.ShellLeavePromptAlone = cli.Shell.NoCommandPrompt
-		config.ShellMaxPromptTokens = cli.Shell.MaxPromptTokens
-		config.ShellMaxHistoryBlockTokens = cli.Shell.MaxHistoryBlockTokens
-		config.ShellMaxResponseTokens = cli.Shell.MaxResponseTokens
-
-		bf.RunShell(ctx, config)
-
-	default:
-		if cli.Log {
-			util.InitLogging(ctx)
-		}
-		butterfishCtx, err := bf.NewButterfish(ctx, config)
-		if err != nil {
-			fmt.Fprintf(errorWriter, err.Error())
-			os.Exit(3)
-		}
-		//butterfishCtx.Config.Styles.PrintTestColors()
-
-		err = butterfishCtx.ExecCommand(parsedCmd, &cli.CliCommandConfig)
-
-		if err != nil {
-			butterfishCtx.StylePrintf(config.Styles.Error, "Error: %s\n", err.Error())
-			os.Exit(4)
-		}
+	alreadyRunning := os.Getenv("BUTTERFISH_SHELL")
+	if alreadyRunning != "" {
+		fmt.Fprintf(errorWriter, "Butterfish shell is already running, cannot wrap shell again (detected with BUTTERFISH_SHELL env var).\n")
+		os.Exit(8)
 	}
+
+	shell := os.Getenv("SHELL")
+	if cli.Shell.Bin != "" {
+		shell = cli.Shell.Bin
+	}
+	if shell == "" {
+		fmt.Fprintf(errorWriter, "No shell found, please specify one with -b or $SHELL\n")
+		os.Exit(7)
+	}
+
+	config.ShellBinary = shell
+	config.ShellPromptModel = cli.Shell.Model
+	config.ColorDark = !cli.LightColor
+	config.ShellMode = true // Indicate we are running in shell mode
+	config.ShellLeavePromptAlone = cli.Shell.NoCommandPrompt
+	config.ShellMaxPromptTokens = cli.Shell.MaxPromptTokens
+	config.ShellMaxHistoryBlockTokens = cli.Shell.MaxHistoryBlockTokens
+	config.ShellMaxResponseTokens = cli.Shell.MaxResponseTokens
+
+	// Removed autosuggest config assignments
+
+	bf.RunShell(ctx, config)
+	// --- End Shell Mode ---
+
 }

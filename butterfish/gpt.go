@@ -251,10 +251,7 @@ func ShellHistoryTypeToRole(t int) string {
 	switch t {
 	case historyTypeLLMOutput:
 		return "assistant"
-	case historyTypeFunctionOutput:
-		return "function"
-	case historyTypeToolOutput:
-		return "tool"
+	// Removed FunctionOutput and ToolOutput cases
 	default:
 		return "user"
 	}

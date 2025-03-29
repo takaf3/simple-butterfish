@@ -21,17 +21,12 @@ import (
 	"github.com/mitchellh/go-homedir"
 	"golang.org/x/term"
 
-	"github.com/bakks/butterfish/embedding"
+	// Removed embedding import
 	"github.com/bakks/butterfish/prompt"
 	"github.com/bakks/butterfish/util"
 )
 
-// Main driver for the Butterfish set of command line tools. These are tools
-// for using AI capabilities on the command line.
-
-// Shell to-do
-// - Add fallback when you need to start a command with a capital letter
-// - Check if the cursor has moved back before doing autocomplete
+// Main driver for the Butterfish shell wrapper.
 
 type ButterfishConfig struct {
 	// Verbose mode, prints out more information like raw OpenAI communication.
@@ -69,18 +64,12 @@ type ButterfishConfig struct {
 	PromptLibrary PromptLibrary
 
 	// Shell mode configuration
-	ShellMode               bool
-	ShellPluginMode         bool
-	ShellBinary             string // path to the shell binary to use, e.g. /bin/zsh
-	ShellPromptModel        string // used when the user enters an explicit prompt
-	ShellLeavePromptAlone   bool   // don't try to edit the shell prompt
-	ShellAutosuggestEnabled bool   // whether to use autosuggest
-	ShellAutosuggestModel   string // used when we're autocompleting a command
-	// how long to wait between when the user stos typing and we ask for an
-	// autosuggest
-	ShellAutosuggestTimeout time.Duration
-	// timeout specifically for a fresh prompt suggestion
-	ShellNewlineAutosuggestTimeout time.Duration
+	ShellMode bool
+	// ShellPluginMode         bool   // Keep for potential future use? Or remove? Let's remove for now.
+	ShellBinary           string // path to the shell binary to use, e.g. /bin/zsh
+	ShellPromptModel      string // used when the user enters an explicit prompt
+	ShellLeavePromptAlone bool   // don't try to edit the shell prompt
+	// Removed autosuggest fields
 	// Maximum tokens in a prompt regardless of model capacity
 	ShellMaxPromptTokens int
 	// Maximum tokens that a single history line-item can consume
@@ -88,20 +77,7 @@ type ButterfishConfig struct {
 	// Maximum tokens for the response, reserved when calculating history and passed as max_tokens during inference
 	ShellMaxResponseTokens int
 
-	// Model, temp, and max tokens to use when executing the `gencmd` command
-	GencmdModel       string
-	GencmdTemperature float32
-	GencmdMaxTokens   int
-
-	// Model, temp, and max tokens to use when executing the `exec` command
-	ExeccheckModel       string
-	ExeccheckTemperature float32
-	ExeccheckMaxTokens   int
-
-	// Model, temp, and max tokens to use when executing the `summarize` command
-	SummarizeModel       string
-	SummarizeTemperature float32
-	SummarizeMaxTokens   int
+	// Removed other command model configs (Gencmd, Execcheck, Summarize)
 }
 
 func (this *ButterfishConfig) ParseShell() string {
@@ -129,7 +105,7 @@ type PromptLibrary interface {
 type LLM interface {
 	CompletionStream(request *util.CompletionRequest, writer io.Writer) (*util.CompletionResponse, error)
 	Completion(request *util.CompletionRequest) (*util.CompletionResponse, error)
-	Embeddings(ctx context.Context, input []string, verbose bool) ([][]float32, error)
+	// Removed Embeddings method
 }
 
 type ButterfishCtx struct {
@@ -142,16 +118,13 @@ type ButterfishCtx struct {
 
 	// configuration
 	Config *ButterfishConfig
-	// true if we're running in console mode
-	InConsoleMode bool
+	// Removed InConsoleMode
 	// library of prompts
 	PromptLibrary PromptLibrary
 	// GPT client
 	LLMClient LLM
-	// landing space for generated commands
-	CommandRegister string
-	// embedding index for searching local files
-	VectorIndex embedding.FileEmbeddingIndex
+	// Removed CommandRegister
+	// Removed VectorIndex
 }
 
 type ColorScheme struct {
@@ -195,24 +168,16 @@ var GruvboxLight = ColorScheme{
 	Grey:       "#928374",
 }
 
-const BestCompletionModel = "gpt-3.5-turbo"
+// Removed BestCompletionModel constant
 
 func MakeButterfishConfig() *ButterfishConfig {
 	colorScheme := &GruvboxDark
 
 	return &ButterfishConfig{
-		Verbose:              0,
-		ColorScheme:          colorScheme,
-		Styles:               ColorSchemeToStyles(colorScheme),
-		GencmdModel:          BestCompletionModel,
-		GencmdTemperature:    0.6,
-		GencmdMaxTokens:      512,
-		ExeccheckModel:       BestCompletionModel,
-		ExeccheckTemperature: 0.6,
-		ExeccheckMaxTokens:   512,
-		SummarizeModel:       BestCompletionModel,
-		SummarizeTemperature: 0.7,
-		SummarizeMaxTokens:   1024,
+		Verbose:     0,
+		ColorScheme: colorScheme,
+		Styles:      ColorSchemeToStyles(colorScheme),
+		// Removed Gencmd, Execcheck, Summarize defaults
 	}
 }
 
@@ -314,9 +279,7 @@ func ptyCommand(ctx context.Context, envVars []string, command []string) (*os.Fi
 	return ptmx, cleanup, nil
 }
 
-func (this *ButterfishCtx) CalculateEmbeddings(ctx context.Context, content []string) ([][]float32, error) {
-	return this.LLMClient.Embeddings(ctx, content, this.Config.Verbose > 0)
-}
+// Removed CalculateEmbeddings method
 
 // A local printf that writes to the butterfishctx out using a lipgloss style
 func (this *ButterfishCtx) StylePrintf(style lipgloss.Style, format string, a ...any) {
@@ -336,36 +299,7 @@ func (this *ButterfishCtx) ErrorPrintf(format string, a ...any) {
 	this.StylePrintf(this.Config.Styles.Error, format, a...)
 }
 
-// Ensure we have a vector index object, idempotent
-func (this *ButterfishCtx) initVectorIndex(pathsToLoad []string) error {
-	if this.VectorIndex != nil {
-		return nil
-	}
-
-	out := util.NewStyledWriter(this.Out, this.Config.Styles.Foreground)
-	index := embedding.NewDiskCachedEmbeddingIndex(this, out)
-
-	if this.Config.Verbose > 0 {
-		index.SetOutput(this.Out)
-	}
-
-	this.VectorIndex = index
-
-	if !this.InConsoleMode {
-		// if we're running from the command line then we first load the curr
-		// dir index
-		if pathsToLoad == nil || len(pathsToLoad) == 0 {
-			pathsToLoad = []string{"."}
-		}
-
-		err := this.VectorIndex.LoadPaths(this.Ctx, pathsToLoad)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
+// Removed initVectorIndex method
 
 func (this *ButterfishCtx) printError(err error, prefix ...string) {
 	if len(prefix) > 0 {
@@ -376,10 +310,10 @@ func (this *ButterfishCtx) printError(err error, prefix ...string) {
 }
 
 type styles struct {
-	Question   lipgloss.Style
-	Answer     lipgloss.Style
-	Go         lipgloss.Style
-	Summarize  lipgloss.Style
+	Question lipgloss.Style
+	Answer   lipgloss.Style
+	Go       lipgloss.Style
+	// Summarize  lipgloss.Style // Keep for potential future use? Or remove? Let's remove.
 	Highlight  lipgloss.Style
 	Prompt     lipgloss.Style
 	Error      lipgloss.Style
@@ -391,7 +325,7 @@ func (this *styles) PrintTestColors() {
 	fmt.Println(this.Question.Render("Question"))
 	fmt.Println(this.Answer.Render("Answer"))
 	fmt.Println(this.Go.Render("Go"))
-	fmt.Println(this.Summarize.Render("Summarize"))
+	// Removed Summarize style print
 	fmt.Println(this.Highlight.Render("Highlight"))
 	fmt.Println(this.Prompt.Render("Prompt"))
 	fmt.Println(this.Error.Render("Error"))
@@ -401,11 +335,11 @@ func (this *styles) PrintTestColors() {
 
 func ColorSchemeToStyles(colorScheme *ColorScheme) *styles {
 	return &styles{
-		Question:   lipgloss.NewStyle().Foreground(lipgloss.Color(colorScheme.Color5)),
-		Answer:     lipgloss.NewStyle().Foreground(lipgloss.Color(colorScheme.Color2)),
-		Go:         lipgloss.NewStyle().Foreground(lipgloss.Color(colorScheme.Color5)),
-		Highlight:  lipgloss.NewStyle().Foreground(lipgloss.Color(colorScheme.Color2)),
-		Summarize:  lipgloss.NewStyle().Foreground(lipgloss.Color(colorScheme.Color2)),
+		Question:  lipgloss.NewStyle().Foreground(lipgloss.Color(colorScheme.Color5)),
+		Answer:    lipgloss.NewStyle().Foreground(lipgloss.Color(colorScheme.Color2)),
+		Go:        lipgloss.NewStyle().Foreground(lipgloss.Color(colorScheme.Color5)),
+		Highlight: lipgloss.NewStyle().Foreground(lipgloss.Color(colorScheme.Color2)),
+		// Removed Summarize style
 		Prompt:     lipgloss.NewStyle().Foreground(lipgloss.Color(colorScheme.Color4)),
 		Error:      lipgloss.NewStyle().Foreground(lipgloss.Color(colorScheme.Error)),
 		Foreground: lipgloss.NewStyle().Foreground(lipgloss.Color(colorScheme.Foreground)),
@@ -428,7 +362,7 @@ func NewDiskPromptLibrary(path string, verbose bool, writer io.Writer) (*prompt.
 		}
 		loaded = true
 	}
-	promptLibrary.ReplacePrompts(prompt.DefaultPrompts)
+	promptLibrary.ReplacePrompts(prompt.DefaultPrompts) // DefaultPrompts will need updating later
 	promptLibrary.Save()
 
 	if !loaded {
@@ -483,10 +417,10 @@ func NewButterfish(ctx context.Context, config *ButterfishConfig) (*ButterfishCt
 		Ctx:           ctx,
 		Cancel:        cancel,
 		PromptLibrary: promptLibrary,
-		InConsoleMode: false,
-		Config:        config,
-		LLMClient:     llmClient,
-		Out:           os.Stdout,
+		// Removed InConsoleMode
+		Config:    config,
+		LLMClient: llmClient,
+		Out:       os.Stdout,
 	}
 
 	return butterfishCtx, nil
