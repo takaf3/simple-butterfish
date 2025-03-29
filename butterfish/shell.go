@@ -848,6 +848,15 @@ func (this *ShellState) ParentInput(ctx context.Context, data []byte) []byte {
 			this.setState(stateNormal)
 			return data[1:]
 
+		} else if data[0] == '\f' { // Ctrl+L during prompt
+			// Send ANSI codes to clear screen and move cursor to top-left
+			this.ParentOut.Write([]byte("\x1b[2J\x1b[H"))
+			// Redraw the prompt and current input
+			this.ParentOut.Write([]byte(this.Color.Prompt))
+			this.ParentOut.Write([]byte(this.Prompt.String()))
+			// Consume the Ctrl+L character
+			return data[1:]
+
 		} else { // Typing prompt character
 			toPrint := this.Prompt.Write(string(data))
 			// Removed RefreshAutosuggest
