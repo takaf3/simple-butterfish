@@ -966,9 +966,9 @@ func getHistoryBlocksByTokens(
 	usedTokens := 0
 
 	history.IterateBlocks(func(block *HistoryBuffer) bool {
-		// --- Filter for only user prompts and LLM responses ---
-		if block.Type != historyTypePrompt && block.Type != historyTypeLLMOutput {
-			return true // Skip shell input/output blocks
+		// --- Filter out shell command output ---
+		if block.Type == historyTypeShellOutput {
+			return true // Skip shell output blocks
 		}
 		// --- End Filter ---
 
