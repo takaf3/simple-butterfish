@@ -28,7 +28,7 @@ test: proto/butterfish.pb.go
 build: bin/butterfish
 
 install: bin/butterfish
-	cp bin/butterfish /usr/local/bin
+	cp bin/butterfish $$HOME/.local/bin/butterfish
 
 licenses:
 	go-licenses report ./... 2>/dev/null | awk -F"," '{printf "|[%s](https://%s)|[%s](%s)|\n",$$1,$$1,$$3,$$2}'
