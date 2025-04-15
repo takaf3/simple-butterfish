@@ -44,7 +44,7 @@ const PROMPT_PREFIX = "\033Q"
 const PROMPT_SUFFIX = "\033R"
 const PROMPT_PREFIX_ESCAPED = "\\033Q"
 const PROMPT_SUFFIX_ESCAPED = "\\033R"
-const EMOJI_DEFAULT = "🐠"
+const EMOJI_DEFAULT = "🤖"
 
 // Removed Goal Mode Emojis
 

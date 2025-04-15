@@ -68,7 +68,7 @@ type CliConfig struct {
 
 	Shell struct {
 		Bin                   string `short:"b" help:"Shell to use (e.g. /bin/zsh), defaults to $SHELL."`
-		Model                 string `short:"m" default:"gpt-4o" help:"Model for when the user manually enters a prompt."`
+		Model                 string `short:"m" default:"gpt-4.1-mini" help:"Model for when the user manually enters a prompt."`
 		NoCommandPrompt       bool   `short:"p" default:"false" help:"Don't change command prompt (shell PS1 variable). If not set, an emoji will be added to the prompt as a reminder you're in Shell Mode."`
 		MaxPromptTokens       int    `short:"P" default:"16384" help:"Maximum number of tokens, we restrict calls to this size regardless of model capabilities."`
 		MaxHistoryBlockTokens int    `short:"H" default:"1024" help:"Maximum number of tokens of each block of history. For example, if a command has a very long output, it will be truncated to this length when sending the shell's history."`

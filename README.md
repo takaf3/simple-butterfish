@@ -1,4 +1,4 @@
-# 🐠 Simple Butterfish
+# 🤖 Simple Butterfish
 
 A simple shell wrapper for interacting with LLMs.
 
@@ -6,7 +6,7 @@ A simple shell wrapper for interacting with LLMs.
 
 ## What is this thing?
 
-Butterfish is for people who work from the command line. It wraps your existing shell (e.g., bash, zsh) and allows you to easily send prompts to an LLM (like GPT-4o or other OpenAI-compatible models) directly from your command line.
+Butterfish is for people who work from the command line. It wraps your existing shell (e.g., bash, zsh) and allows you to easily send prompts to an LLM (like GPT-4.1-mini or other OpenAI-compatible models) directly from your command line.
 
 Here's how it works: use your shell as normal for regular commands. To prompt the AI, simply start your command line input with an uppercase letter. Butterfish sends your prompt along with recent conversation history (your uppercase prompts, the AI's answers, and the regular shell commands you ran) to the LLM. Shell command *output* is excluded from the context sent to the LLM for privacy.
 
@@ -38,7 +38,25 @@ To configure the prompts, you can edit `~/.config/butterfish/prompts.yaml`.
 
 Butterfish works on macOS and Linux. Ensure you have Go installed (version 1.21 or later recommended).
 
-You can install the latest version using `go install`:
+### Install from Source
+
+Clone and build locally:
+
+```sh
+git clone https://github.com/takaf3/simple-butterfish.git
+cd simple-butterfish
+go build -o butterfish ./cmd/butterfish
+./butterfish
+```
+
+Or install globally (adds to your Go bin dir):
+
+```sh
+go install ./cmd/butterfish
+# Ensure $(go env GOPATH)/bin or $HOME/go/bin is in your PATH
+```
+
+### Install via Go Install (latest release)
 
 ```bash
 go install github.com/takaf3/simple-butterfish/cmd/butterfish@latest
@@ -71,10 +89,10 @@ How does this work? Shell mode _wraps_ your shell rather than replacing it.
 
 <img src="https://github.com/takaf3/simple-butterfish/raw/main/vhs/gif/shell2.gif" alt="Butterfish" width="500px" height="250px" />
 
-Shell mode defaults to using `gpt-4o` for prompting. You can specify a different OpenAI-compatible model using the `-m` flag:
+Shell mode defaults to using `gpt-4.1-mini` for prompting. You can specify a different OpenAI-compatible model using the `-m` flag:
 
 ```bash
-butterfish -m some-other-model
+butterfish shell -m some-other-model
 ```
 
 ### Shell Mode Command Reference
@@ -114,7 +132,7 @@ Use:
 
 Flags for SHELL:
   -b, --bin=STRING                 Shell to use (e.g. /bin/zsh), defaults to $SHELL.
-  -m, --model="gpt-4o"             Model for when the user manually enters a prompt.
+  -m, --model="gpt-4.1-mini"         Model for when the user manually enters a prompt.
   -p, --no-command-prompt          Don't change command prompt (shell PS1 variable). If not set, an emoji will be added to the prompt as a reminder you're in Shell Mode. (Default: false)
   -P, --max-prompt-tokens=16384    Maximum number of tokens, we restrict calls to this size regardless of model capabilities.
   -H, --max-history-block-tokens=1024
