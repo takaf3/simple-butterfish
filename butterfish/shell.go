@@ -29,7 +29,7 @@ import (
 )
 
 // Default model encoder if the specified one isn't found
-const DEFAULT_PROMPT_ENCODER = "gpt-4-turbo"
+const DEFAULT_PROMPT_ENCODER = "gpt-4-1106-preview"
 
 const ESC_CUP = "\x1b[6n" // Request the cursor position
 const ESC_UP = "\x1b[%dA"
