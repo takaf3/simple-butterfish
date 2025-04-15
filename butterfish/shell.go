@@ -767,8 +767,8 @@ func (this *ShellState) ParentInput(ctx context.Context, data []byte) []byte {
 			if this.Prompt != nil {
 				this.Prompt.Clear()
 			}
-			// Send a carriage return to the child shell to trigger a prompt redraw
-			this.ChildIn.Write([]byte("\r"))
+			// Send a newline to the shell to force prompt redraw at the top
+			this.ChildIn.Write([]byte("\n"))
 			// Consume the Ctrl+L character
 			return data[1:]
 		}
